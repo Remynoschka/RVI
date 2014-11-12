@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <title>Dinner</title>
+	<!-- FRANCOIS Rémy -->
+    </head>
+
+    <body>
+    	<script type="text/javascript" src="video360.js"></script>
+    	<!-- fragment shader simple -->
+        <script id="simple-fs" type="x-shader/x-fragment">
+            precision highp float;
+            
+            //varying vec4 vColor;
+            varying vec2 vTexCoord;
+            
+            uniform sampler2D texture0;
+            void main(void){
+                vec4 color = texture2D(texture0, vTexCoord);
+                gl_FragColor= color;
+            }
+        </script>      
+        <!-- vertex shader simple -->
+        <script id="simple-vs" type="x-shader/x-vertex">
+            precision highp float;
+            
+            attribute vec4 vertex;
+            //attribute vec4 fragment;
+            attribute vec2 texCoord;
+            
+            //varying vec4 vColor;
+            varying vec2 vTexCoord;
+            void main(void){
+                gl_Position = vertex;
+                //vColor = fragment;
+                vTexCoord = texCoord;
+            }
+        </script>
+        
+        <canvas id="webglCanvas" width="512" height="512"></canvas>
+    	<video id="videoDinner" src="repas.webm" autoplay="true" controls="true"></video>
+        <img id="earthTexture" src="EarthDay1024.jpg" />
+    </body>
+</html>
