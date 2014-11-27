@@ -1,0 +1,12 @@
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <title> Three.js/Navigation </title>
+    </head>
+    
+    <body>
+        <script type='text/javascript' src='three.min.js'></script>
+        <script type='text/javascript' src='main.js'></script>
+        <canvas id='webglCanvas' width='512' height='512'></canvas>
+    </body>
+</html>
