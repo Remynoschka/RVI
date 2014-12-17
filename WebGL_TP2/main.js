@@ -10,7 +10,8 @@ var fly;
 var velocity = 1.0;
 var canvas;
 var selectedObject;
-
+var oldMouseX;
+var oldMouseY;
 function main(){
     init();
     loop();
@@ -52,6 +53,9 @@ function init(){
     pointLight.position.z = 10; // pour la positionner 
     scene.add(pointLight); // il faut l'ajouter à la scène (les light dérivent de Object3D).
     fly = new Fly();
+	
+	bIndirecte=document.getElementById("indirecte"); 
+	bIndirecte.addEventListener("click",handleIndirect,false);
 }
 
 /** ****************************** */
@@ -171,6 +175,10 @@ function handleMouseDown(evt){
     if (arrayIntersect.length>0) { 
         selectedObject = arrayIntersect[0];
         console.log("object selected");
+		oldMouseX = evt.layerX - canvas.offsetLeft;
+		oldMouseY = (canvas.height - 1.0) - (evt.layerY - canvas.offsetTop);
+		oldMouseX =((oldMouseX / canvas.width)*2) -1;
+		oldMouseY =-((oldMouseY / canvas.height) *2) +1;
     }
 }
 
@@ -184,6 +192,7 @@ function handleMouseUp(evt){
     var y = evt.clientY;
     x -= canvas.offsetLeft;
     y -= canvas.offsetTop;
+	
  
     while(evt && !isNaN(evt.offsetLeft) && !isNaN(evt.offsetTop)) {
         cx += evt.offsetLeft - evt.scrollLeft;
@@ -203,22 +212,40 @@ function handleMouseUp(evt){
  */
 function handleMouseMove(evt){
     // recuperer coordonnees souris
-    var x = evt.clientX;
-    var y = evt.clientY;
-    x -= canvas.offsetLeft;
-    y -= canvas.offsetTop;
- 
-    while(evt && !isNaN(evt.offsetLeft) && !isNaN(evt.offsetTop)) {
-        cx += evt.offsetLeft - evt.scrollLeft;
-        cy += evt.offsetTop - evt.scrollTop;
-        evt = evt.offsetParent;
-    }
-    // normaliser coordonnees souris
-    x =((x / canvas.width)*2) -1;
-    y =-((y / canvas.height) *2) +1;
-    
-    selectedObject.object.position.x = selectedObject.object.position.x+x;
-    selectedObject.object.position.y = selectedObject.object.position.y+y;
+	if (selectedObject != null){
+		var x = evt.layerX - canvas.offsetLeft;
+		var y = (canvas.height - 1.0) - (evt.layerY - canvas.offsetTop);
+
+	 
+		while(evt && !isNaN(evt.offsetLeft) && !isNaN(evt.offsetTop)) {
+			cx += evt.offsetLeft - evt.scrollLeft;
+			cy += evt.offsetTop - evt.scrollTop;
+			evt = evt.offsetParent;
+		}
+		// normaliser coordonnees souris
+		x =((x / canvas.width)*2) -1;
+		y =-((y / canvas.height) *2) +1;
+		
+		var dx = x - oldMouseX;
+		var dy = oldMouseY - y;
+		
+		//transformer pour que ce soit dans le plan // a la camera
+		var vectorD = new THREE.Vector3(dx, dy,0);
+		vectorD = camera.localToWorld(vectorD);
+		vectorD = selectedObject.object.worldToLocal(vectorD);
+		
+		selectedObject.object.position.x = selectedObject.object.position.x+vectorD.x;
+		selectedObject.object.position.y = selectedObject.object.position.y+vectorD.y;
+		selectedObject.object.position.z = selectedObject.object.position.y+vectorD.z;
+		//console.log("Coordonnees objets = "+selectedObject.object.position.x+"/"+selectedObject.object.position.y);
+		//console.log("Bouge de = "+dx+"/"+dy);
+	}
+	oldMouseX = evt.layerX - canvas.offsetLeft;
+	oldMouseY = (canvas.height - 1.0) - (evt.layerY - canvas.offsetTop);
+	// normaliser
+	oldMouseX =((oldMouseX / canvas.width)*2) -1;
+    oldMouseY =-((oldMouseY / canvas.height) *2) +1;
+	//console.log("oldMouse = "+oldMouseX+"/"+oldMouseY);
 }
 
 
@@ -284,4 +311,8 @@ function Fly(){
     this.rollDecUpdate;
     this.velocityIncUpdate;
     this.velocityDecUpdate;
+}
+
+function handleIndirect(event) {
+
 }
