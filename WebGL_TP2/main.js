@@ -12,6 +12,11 @@ var canvas;
 var selectedObject;
 var oldMouseX;
 var oldMouseY;
+var planIntersect
+
+var direct;
+var rayon;
+var rotation;
 function main(){
     init();
     loop();
@@ -28,6 +33,8 @@ function init(){
     canvas.addEventListener("mousedown",handleMouseDown,false); // sélection 
     canvas.addEventListener("mouseup",handleMouseUp,false); 
     canvas.addEventListener("mousemove",handleMouseMove,false); // translation
+    canvas.addEventListener("mousewheel",handleMousewheel,false); // norme (IE9, Chrome, Safari, etc) 
+    canvas.addEventListener("DOMMouseScroll",handleMousewheelFirefox,false); // spécifique Firefox (...)
     renderer = new THREE.WebGLRenderer({canvas : canvas}); // créé le renderer pour votre canvas
     renderer.setClearColor(new THREE.Color(0xeeeeee),1.0); // couleur en héxa; alpha = opacité = 1.0
     // creer une scene vide
@@ -56,6 +63,10 @@ function init(){
 	
 	bIndirecte=document.getElementById("indirecte"); 
 	bIndirecte.addEventListener("click",handleIndirect,false);
+	bDirecte=document.getElementById("directe"); 
+	bDirecte.addEventListener("click",handleDirect,false);
+	bRotation=document.getElementById("rotation"); 
+	bRotation.addEventListener("click",handleRotation,false);
 }
 
 /** ****************************** */
@@ -170,11 +181,13 @@ function handleMouseDown(evt){
     y =-((y / canvas.height) *2) +1;
     
     var projector=new THREE.Projector(); 
-    var ray=projector.pickingRay(new THREE.Vector3(x,y,0),camera);
-    var arrayIntersect=ray.intersectObjects(scene.children); 
+    rayon =projector.pickingRay(new THREE.Vector3(x,y,0),camera);
+    var arrayIntersect=rayon.intersectObjects(scene.children); 
     if (arrayIntersect.length>0) { 
         selectedObject = arrayIntersect[0];
-        console.log("object selected");
+
+        planIntersect = new THREE.Plane(new THREE.Vector3(0,0,1), -selectedObject.object.position.z);
+
 		oldMouseX = evt.layerX - canvas.offsetLeft;
 		oldMouseY = (canvas.height - 1.0) - (evt.layerY - canvas.offsetTop);
 		oldMouseX =((oldMouseX / canvas.width)*2) -1;
@@ -204,6 +217,7 @@ function handleMouseUp(evt){
     y =-((y / canvas.height) *2) +1;
     
     selectedObject = null;
+    planIntersect = null;
 }
 
 /** ****************************** */
@@ -213,38 +227,65 @@ function handleMouseUp(evt){
 function handleMouseMove(evt){
     // recuperer coordonnees souris
 	if (selectedObject != null){
-		var x = evt.layerX - canvas.offsetLeft;
-		var y = (canvas.height - 1.0) - (evt.layerY - canvas.offsetTop);
+	     var x = evt.layerX - canvas.offsetLeft;
+        var y = (canvas.height - 1.0) - (evt.layerY - canvas.offsetTop);
 
-	 
-		while(evt && !isNaN(evt.offsetLeft) && !isNaN(evt.offsetTop)) {
-			cx += evt.offsetLeft - evt.scrollLeft;
-			cy += evt.offsetTop - evt.scrollTop;
-			evt = evt.offsetParent;
-		}
-		// normaliser coordonnees souris
-		x =((x / canvas.width)*2) -1;
-		y =-((y / canvas.height) *2) +1;
-		
-		var dx = x - oldMouseX;
-		var dy = oldMouseY - y;
-		
-		//transformer pour que ce soit dans le plan // a la camera
-		var vectorD = new THREE.Vector3(dx, dy,0);
-		vectorD = camera.localToWorld(vectorD);
-		vectorD = selectedObject.object.worldToLocal(vectorD);
-		
-		selectedObject.object.position.x = selectedObject.object.position.x+vectorD.x;
-		selectedObject.object.position.y = selectedObject.object.position.y+vectorD.y;
-		selectedObject.object.position.z = selectedObject.object.position.y+vectorD.z;
-		//console.log("Coordonnees objets = "+selectedObject.object.position.x+"/"+selectedObject.object.position.y);
-		//console.log("Bouge de = "+dx+"/"+dy);
+        // normaliser coordonnees souris
+        x =((x / canvas.width)*2) -1;
+        y =-((y / canvas.height) *2) +1;
+
+        var dx = x - oldMouseX;
+        var dy = oldMouseY - y;
+        if (!rotation){
+            // deplacement
+	        if (!direct){	     
+	            //transformer pour que ce soit dans le plan // a la camera
+                var positionObject = selectedObject.object.localToWorld(selectedObject.object.position);
+                positionObject = camera.worldToLocal(positionObject);
+                
+                positionObject.x += dx;
+                positionObject.y += dy;
+                
+                positionObject = camera.localToWorld(positionObject);
+                positionObject = selectedObject.object.worldToLocal(positionObject);
+                
+	            selectedObject.object.position = positionObject;
+	            oldMouseX = x;
+	            oldMouseY = y;
+        	} else {
+        	    // raycast
+        	    var projector = new THREE.Projector();
+	            rayon = projector.pickingRay(new THREE.Vector3(x,-y,0),camera);
+	            
+	            //transformer pour que ce soit dans le plan // a la camera
+                var normale = camera.localToWorld(new THREE.Vector3(0,0,1));
+                normale = selectedObject.object.worldToLocal(normale);
+                
+                planIntersect.setFromNormalAndCoplanarPoint(normale, selectedObject.object.position);
+                
+                var positionObject = rayon.ray.intersectPlane(planIntersect);
+                
+                if (positionObject != null){
+                    selectedObject.object.position = positionObject;
+                }
+        	}
+    	} else {
+    	    // rotation    	   
+            var vecteurX = camera.localToWorld(new THREE.Vector3(1,0,0));
+            var vecteurY = camera.localToWorld(new THREE.Vector3(0,1,0));
+            var origine = camera.localToWorld(new THREE.Vector3(0,0,0));
+            
+            // mettre les vecteurs dans le repere objet
+            vecteurX = selectedObject.object.worldToLocal(vecteurX);
+            vecteurY = selectedObject.object.worldToLocal(vecteurY);
+            origine = selectedObject.object.worldToLocal(origine);
+            
+            // faire la rotation
+            selectedObject.object.rotateOnAxis(vecteurX.sub(origine), -dy/2);
+            selectedObject.object.rotateOnAxis(vecteurY.sub(origine), dx/2);
+    	}
 	}
-	oldMouseX = evt.layerX - canvas.offsetLeft;
-	oldMouseY = (canvas.height - 1.0) - (evt.layerY - canvas.offsetTop);
-	// normaliser
-	oldMouseX =((oldMouseX / canvas.width)*2) -1;
-    oldMouseY =-((oldMouseY / canvas.height) *2) +1;
+
 	//console.log("oldMouse = "+oldMouseX+"/"+oldMouseY);
 }
 
@@ -314,5 +355,44 @@ function Fly(){
 }
 
 function handleIndirect(event) {
+    direct = false;
+}
 
+function handleDirect(event) {
+    direct = true;
+}
+
+function handleMousewheel(e) { 
+    console.log("mousewheel",e.wheelDelta); 
+    // IE9/Chrome/Opera... 
+    if (selectedObject != null){
+        var direction = rayon.ray.direction;
+        direction = selectedObject.object.worldToLocal(direction);
+        // normaliser la direction
+        direction.normalize();
+        // translate
+        selectedObject.object.translateOnAxis(direction, -e.wheelDelta);
+    }
+}
+
+function handleMousewheelFirefox(e) { 
+    console.log("mousewheel FF",e.detail); 
+    // Firefox 
+    e.preventDefault(); // interdit la remontée de l'event 
+    if (selectedObject != null){
+        var direction = rayon.ray.direction;
+//        direction = selectedObject.object.worldToLocal(direction);
+        // normaliser la direction
+        direction.normalize();
+        // translate
+        selectedObject.object.translateOnAxis(direction, -e.detail);
+    }
+}
+
+function handleRotation(event) {
+    if (rotation){
+        rotation = false;
+    } else {
+        rotation = true;
+    }
 }

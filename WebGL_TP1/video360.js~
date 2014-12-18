@@ -1,7 +1,17 @@
 window.addEventListener('load',main,false);
 var programShader;
+
 var triangleVertexBuffer;
+
 var colorBuffer;
+
+var triangleTexCoordBuffer;
+var theTexture
+;
+var modelView;
+var projection;
+var angle;
+
 var gl;// will contain the webgl context
 
 /* ************************* */
@@ -18,8 +28,17 @@ function initGL(){
         gl.clearColor(0,0,0,1);
         gl.clearDepth(1.0);
         gl.enable(gl.DEPTH_TEST);
-        gl.clear(gl.DEPTH_BUFFER_BIT | gl.COLOR_BUFFER_BIT);
+        gl.clear(gl.DEPTH_BUFFER_BIT | gl.COLOR_BUFFER_BIT);        
     }
+    
+    projection = new Mat4();
+    modelView = new Mat4();
+    modelView.setIdentity();
+
+    modelView.translate(0,0,-4) ;
+    projection.setFrustum(-0.1, 0.1, -0.1, 0.1, 0.1, 1000);
+
+    
 }
 
 /* ******************************* */
@@ -33,15 +52,15 @@ function main () {
 /* ******************************* */
 function initDataGL(){
     initTriangle();
-    initTexture("earthTexture");
+    theTexture = initTexture("earthTexture");
 }
 
 /* ******************************* */
 function initTriangle(){
     // sommets
-    var vertex=[-0.5,0.5,0.0,
-                0.5,-0.5,0.0,
-                -0.7,-0.9,0.0
+    var vertex=[-2.0,3,-1.0, 
+                3,0.0,0.0,
+                -1,-3.0,0.5
                 ];
                 
     var vertexBuffer=gl.createBuffer();
@@ -59,6 +78,14 @@ function initTriangle(){
     colorBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER,colorBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
+    
+    // texture
+     var coordTexture = [0.0, 0.0,
+                        1.0, 0.0,
+                        0.0, 1.0 ];
+    triangleTexCoordBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER,triangleTexCoordBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(coordTexture), gl.STATIC_DRAW);
 }
 
 /* ******************************* */
@@ -89,7 +116,9 @@ function compileShaders(){
  *
  */
 function updateData(){
+    angle += 0.01 ;
 
+    //modelView.rotateX(0.1);
 }
 
 /** ****************************** */
@@ -103,10 +132,7 @@ function drawScene(){
     var vertexLocation=gl.getAttribLocation(programShader, 'vertex');
    // var vertexColorAttribute = gl.getAttribLocation(programShader, 'fragment');
     var texCoordLocation = gl.getAttribLocation(programShader, 'texCoord');
-    var textureLocation = gl.getUniformLocation(programshader, 'texture0');
-    
-    // set up uniform
-    gl.uniform1i(textureLocation, 0);
+    var textureLocation = gl.getUniformLocation(programShader, 'texture0');
     
     // draw geometry
     gl.enableVertexAttribArray(vertexLocation);    
@@ -130,7 +156,13 @@ function drawScene(){
     
     gl.drawArrays(gl.TRIANGLES, 0,3);
     
-
+     // modelview
+    var modelviewLocation = gl.getUniformLocation(programShader, 'modelView');
+    var projectionLocation = gl.getUniformLocation(programShader, 'projection');
+    // set up uniform
+    gl.uniform1i(textureLocation, 0);
+    gl.uniformMatrix4fv(modelviewLocation, gl.FALSE, modelView.fv);
+    gl.uniformMatrix4fv(projectionLocation, gl.FALSE, projection.fv);
     
     // disable all
     gl.disableVertexAttribArray(vertexLocation);
